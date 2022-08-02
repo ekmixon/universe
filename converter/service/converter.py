@@ -52,7 +52,7 @@ class Handler(BaseHTTPRequestHandler):
         logger.info("[%s] %s", self.address_string(), format % args)
 
     def do_GET(self):
-        logger.debug('\n{}\n{}'.format(self.requestline, self.headers).rstrip())
+        logger.debug(f'\n{self.requestline}\n{self.headers}'.rstrip())
         url_path = urlparse(self.path).path
         try:
             if url_path == transform_url_path:
@@ -71,8 +71,7 @@ class Handler(BaseHTTPRequestHandler):
                 http://<host>:<port>/transform?url=<url> with `User-Agent`
                 and `Accept` headers
         """
-        errors = _validate_request(self)
-        if errors:
+        if errors := _validate_request(self):
             self.send_error(HTTPStatus.BAD_REQUEST, explain=errors)
             return
 
@@ -115,13 +114,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         except Exception as e:
             logger.exception(
-                'Unhandled exception for [{}] UA [{}] Accept [{}]'.format(
-                    query,
-                    user_agent,
-                    accept
-                ),
-                e
+                f'Unhandled exception for [{query}] UA [{user_agent}] Accept [{accept}]',
+                e,
             )
+
             raise e
 
         self.send_response(HTTPStatus.OK)
@@ -160,11 +156,10 @@ def handle(decoded_url, user_agent, accept) -> (str, str):
     req = Request(decoded_url)
     req.add_header(header_user_agent, user_agent)
     req.add_header(header_accept, accept)
-    logger.debug('\n{}\n{}\n{}'.format(
-        '<--- Upstream Request --->',
-        req.full_url,
-        _format_dict(req.headers)
-    ))
+    logger.debug(
+        f'\n<--- Upstream Request --->\n{req.full_url}\n{_format_dict(req.headers)}'
+    )
+
     with urlopen(req, timeout=MAX_TIMEOUT) as res:
         charset = res.info().get_param(param_charset) or default_charset
 
@@ -174,13 +169,10 @@ def handle(decoded_url, user_agent, accept) -> (str, str):
         if int(res.headers.get(header_content_length)) > MAX_BYTES:
             raise ValueError(ErrorResponse.MAX_SIZE.to_msg())
         resp_content = res.read().decode(charset)
-        logger.debug('\n{}\n{} {}\n{}\n{}'.format(
-            '<--- Upstream Response --->',
-            res.getcode(),
-            res.reason,
-            _format_dict(res.headers),
-            resp_content if res.getcode() // 200 != 1 else ''
-        ))
+        logger.debug(
+            f"\n<--- Upstream Response --->\n{res.getcode()} {res.reason}\n{_format_dict(res.headers)}\n{resp_content if res.getcode() // 200 != 1 else ''}"
+        )
+
         content_type, repo_version = _get_repo_version(accept)
         dcos_version = _get_dcos_version(user_agent)
         logger.debug('Version [%s] DC/OS [%s]', repo_version, dcos_version)
@@ -189,7 +181,10 @@ def handle(decoded_url, user_agent, accept) -> (str, str):
         except ValueError as e:
             logger.exception(e)
             raise ValueError(ErrorResponse.INVALID_JSON_FROM_UPSTREAM.to_msg(decoded_url))
-        assert json_key_packages in json_body, 'Expected key [{}] is not present in response'.format(json_key_packages)
+        assert (
+            json_key_packages in json_body
+        ), f'Expected key [{json_key_packages}] is not present in response'
+
         return content_type, render_json(
             json_body[json_key_packages],
             dcos_version,
@@ -254,9 +249,7 @@ def _get_repo_version(accept_headers) -> (str, str):
         raise ValueError(ErrorResponse.UNABLE_PARSE.to_msg(
             header_accept, accept_headers
         ))
-    headers = {}
-    for h in filtered_headers:
-        headers[h] = re.findall(version_regex, h)[0][1]
+    headers = {h: re.findall(version_regex, h)[0][1] for h in filtered_headers}
     return sorted(headers.items(), key=lambda x: x[1], reverse=True)[0]
 
 
@@ -281,7 +274,7 @@ def _format_dict(d):
     :return pretty formatted dictionary
     :rtype str
     """
-    return '\n'.join('{}: {}'.format(k, v) for k, v in d.items())
+    return '\n'.join(f'{k}: {v}' for k, v in d.items())
 
 
 class ErrorResponse(Enum):
