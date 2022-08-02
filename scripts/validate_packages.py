@@ -39,10 +39,9 @@ def main():
     for letter in sorted(os.listdir(PKG_DIR)):
         if not LETTER_PATTERN.match(letter):
             sys.exit(
-                "\tERROR\n\n"
-                "Invalid name for directory : {}\nName should match the "
-                "pattern : {}".format(letter, LETTER_PATTERN.pattern)
+                f"\tERROR\n\nInvalid name for directory : {letter}\nName should match the pattern : {LETTER_PATTERN.pattern}"
             )
+
         prefix_path = os.path.join(PKG_DIR, letter)
         # traverse each package dir directory (e.g., "cassandra")
         for given_package in sorted(os.listdir(prefix_path)):
@@ -53,13 +52,13 @@ def main():
 
 
 def _validate_package(given_package, path):
-    eprint("Validating {}...".format(given_package))
+    eprint(f"Validating {given_package}...")
     for rev in sorted(os.listdir(path), key=int):
         _validate_revision(given_package, rev, os.path.join(path, rev))
 
 
 def _validate_revision(given_package, revision, path):
-    eprint("\tValidating revision {}...".format(revision))
+    eprint(f"\tValidating revision {revision}...")
 
     # validate package.json
     package_json_path = os.path.join(path, 'package.json')
@@ -151,17 +150,12 @@ def _validate_revision(given_package, revision, path):
 def _validate_package_with_directory(given_package, actual_package_name):
     if not PACKAGE_FOLDER_PATTERN.match(given_package):
         sys.exit(
-            "\tERROR\n\n"
-            "Invalid name for package directory : {}"
-            "\nName should match the pattern : {}"
-            .format(given_package, PACKAGE_FOLDER_PATTERN.pattern)
+            f"\tERROR\n\nInvalid name for package directory : {given_package}\nName should match the pattern : {PACKAGE_FOLDER_PATTERN.pattern}"
         )
+
     if given_package != actual_package_name:
         sys.exit(
-            "\tERROR\n\n"
-            "The name parameter in package.json should match with the name of "
-            "the package directory.\nDirectory : {}, Parsed Name : {}"
-            .format(given_package, actual_package_name)
+            f"\tERROR\n\nThe name parameter in package.json should match with the name of the package directory.\nDirectory : {given_package}, Parsed Name : {actual_package_name}"
         )
 
 
@@ -173,8 +167,7 @@ def _validate_json(path, schema):
         # DCOS-42473 : Package should NOT contain escaped unicode literals
         json_content = json.dumps(data)
         result = ESCAPED_UNICODE_LITERAL.findall(json_content)
-        assert not result, "Invalid literal(s) [{}] in [{}]"\
-            .format(result, json_content)
+        assert not result, f"Invalid literal(s) [{result}] in [{json_content}]"
 
     _validate_jsonschema(data, schema)
     return data
@@ -182,9 +175,8 @@ def _validate_json(path, schema):
 
 def _validate_jsonschema(instance, schema):
     validator = jsonschema.Draft4Validator(schema)
-    errors = list(validator.iter_errors(instance))
-    if len(errors) != 0:
-        sys.exit("\tERROR\n\nValidation error: {}".format(errors))
+    if errors := list(validator.iter_errors(instance)):
+        sys.exit(f"\tERROR\n\nValidation error: {errors}")
 
 
 def _validate_mustache_template(mustache_path):
@@ -193,7 +185,7 @@ def _validate_mustache_template(mustache_path):
         try:
             pystache.parse(mustache_template)
         except ParsingError as pe:
-            sys.exit("\tERROR\n\nParsing error: {}".format(str(pe)))
+            sys.exit(f"\tERROR\n\nParsing error: {str(pe)}")
 
 
 if __name__ == '__main__':

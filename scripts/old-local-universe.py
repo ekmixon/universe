@@ -254,9 +254,19 @@ def enumerate_docker_images(package_path):
 @contextlib.contextmanager
 def run_docker_registry(volume_path):
     print('Start docker registry.')
-    command = ['docker', 'run', '-d', '-p', '5000:5000', '--name',
-               'registry', '-v', '{}:/var/lib/registry'.format(volume_path),
-               'registry:2.4.1']
+    command = [
+        'docker',
+        'run',
+        '-d',
+        '-p',
+        '5000:5000',
+        '--name',
+        'registry',
+        '-v',
+        f'{volume_path}:/var/lib/registry',
+        'registry:2.4.1',
+    ]
+
 
     subprocess.check_call(command)
 
@@ -269,7 +279,7 @@ def run_docker_registry(volume_path):
 
 
 def download_docker_image(name):
-    print('Pull docker images: {}'.format(name))
+    print(f'Pull docker images: {name}')
     command = ['docker', 'pull', name]
 
     subprocess.check_call(command)
@@ -278,13 +288,13 @@ def download_docker_image(name):
 def format_image_name(host, name):
     # Probably has a hostname at the front, get rid of it.
     if '.' in name.split(':')[0]:
-        return '{}/{}'.format(host, "/".join(name.split("/")[1:]))
+        return f'{host}/{"/".join(name.split("/")[1:])}'
 
-    return '{}/{}'.format(host, name)
+    return f'{host}/{name}'
 
 
 def upload_docker_image(name):
-    print('Pushing docker image: {}'.format(name))
+    print(f'Pushing docker image: {name}')
     command = ['docker', 'tag', name,
                format_image_name('localhost:5000', name)]
 
@@ -313,7 +323,7 @@ def build_universe_docker(dir_path):
 def add_http_resource(dir_path, url, base_path):
     archive_path = (dir_path / base_path /
                     pathlib.Path(urllib.parse.urlparse(url).path).name)
-    print('Adding {} at {}.'.format(url, archive_path))
+    print(f'Adding {url} at {archive_path}.')
     os.makedirs(str(archive_path.parent), exist_ok=True)
     urllib.request.urlretrieve(url, str(archive_path))
 
@@ -330,8 +340,7 @@ def prepare_repository(
 
     source_resource = package_path / 'resource.json'
     dest_resource = dest_path / 'resource.json'
-    with source_resource.open(encoding='utf-8') as source_file, \
-            dest_resource.open('w', encoding='utf-8') as dest_file:
+    with source_resource.open(encoding='utf-8') as source_file, dest_resource.open('w', encoding='utf-8') as dest_file:
         resource = json.load(source_file)
 
         # Change the root for images (ignore screenshots)
@@ -366,12 +375,11 @@ def prepare_repository(
                                 pathlib.Path(uri).name)))
 
         # Add the local docker repo prefix.
-        if 'assets' in resource:
-            if 'container' in resource["assets"]:
-                resource["assets"]["container"]["docker"] = {
-                    n: format_image_name(DOCKER_ROOT, image_name)
-                    for n, image_name in resource["assets"]["container"].get(
-                        "docker", {}).items()}
+        if 'assets' in resource and 'container' in resource["assets"]:
+            resource["assets"]["container"]["docker"] = {
+                n: format_image_name(DOCKER_ROOT, image_name)
+                for n, image_name in resource["assets"]["container"].get(
+                    "docker", {}).items()}
 
         json.dump(resource, dest_file, indent=4)
 

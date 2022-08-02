@@ -16,64 +16,59 @@ def find_config_files(path):
     config_files = []
 
     for root, dirs, files in os.walk(path):
-        for f in files:
-            if f == 'config.json':
-                config_files.append(os.path.join(root, f))
-
+        config_files.extend(os.path.join(root, f) for f in files if f == 'config.json')
     return config_files
 
 
 def main(path):
     files = find_config_files(path)
     config_ref_path = os.path.join(os.getcwd(), 'config-reference.md')
-    outfile = open(config_ref_path, 'w', encoding='utf-8')
-    outfile.write("# DC/OS Universe Package Configuration Reference\n\n")
+    with open(config_ref_path, 'w', encoding='utf-8') as outfile:
+        outfile.write("# DC/OS Universe Package Configuration Reference\n\n")
 
-    for f in files:
-        with open(f, 'r', encoding='utf-8') as config:
-            package_name = f.split('/')[-3]
-            package_version = f.split('/')[-2]
-            outfile.write("## {} version {}\n\n".format(package_name, package_version))
-            props = json.loads(config.read())['properties']
+        for f in files:
+            with open(f, 'r', encoding='utf-8') as config:
+                package_name = f.split('/')[-3]
+                package_version = f.split('/')[-2]
+                outfile.write(f"## {package_name} version {package_version}\n\n")
+                props = json.loads(config.read())['properties']
 
-            for key, value in props.items():
-                if key == "properties":
-                    outfile.write("*Errors encountered when processing config properties. Not all properties may be listed here. Please verify the structure of this package and package version.*\n\n")
-                    continue
-
-                outfile.write("### {} configuration properties\n\n".format(key))
-                outfile.write("| Property | Type | Description | Default Value |\n")
-                outfile.write("|----------|------|-------------|---------------|\n")
-
-                for _, prop in value.items():
-                    if type(prop) is not dict:
+                for key, value in props.items():
+                    if key == "properties":
+                        outfile.write("*Errors encountered when processing config properties. Not all properties may be listed here. Please verify the structure of this package and package version.*\n\n")
                         continue
-                    for key, details in prop.items():
-                        prop = key
 
-                        try:
-                            typ = details['type']
-                        except KeyError:
-                            typ = "*No type provided.*"
+                    outfile.write(f"### {key} configuration properties\n\n")
+                    outfile.write("| Property | Type | Description | Default Value |\n")
+                    outfile.write("|----------|------|-------------|---------------|\n")
 
-                        try:
-                            desc = details['description']
-                        except KeyError:
-                            desc = "*No description provided.*"
+                    for _, prop in value.items():
+                        if type(prop) is not dict:
+                            continue
+                        for key, details in prop.items():
+                            prop = key
 
-                        try:
-                            default = "`{}`".format(details['default'])
-                            if default == "``":
-                                default = "*Empty string.*"
-                        except KeyError:
-                            default = "*No default.*"
+                            try:
+                                typ = details['type']
+                            except KeyError:
+                                typ = "*No type provided.*"
 
-                        outfile.write("| {prop} | {typ} | {desc} | {default} |\n".format(
-                            prop=prop, desc=desc, typ=typ, default=default))
+                            try:
+                                desc = details['description']
+                            except KeyError:
+                                desc = "*No description provided.*"
 
-                outfile.write("\n")
+                            try:
+                                default = f"`{details['default']}`"
+                                if default == "``":
+                                    default = "*Empty string.*"
+                            except KeyError:
+                                default = "*No default.*"
 
-    outfile.close()
+                            outfile.write("| {prop} | {typ} | {desc} | {default} |\n".format(
+                                prop=prop, desc=desc, typ=typ, default=default))
+
+                    outfile.write("\n")
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:

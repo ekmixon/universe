@@ -20,8 +20,7 @@ def json_checker(pair):
     return ret
 
 if len(sys.argv) != 2:
-    sys.stderr.write(
-        "Syntax: {} path/to/file.json\n".format(os.path.basename(__file__)))
+    sys.stderr.write(f"Syntax: {os.path.basename(__file__)} path/to/file.json\n")
     sys.exit(1)
 
 try:

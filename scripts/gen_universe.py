@@ -17,8 +17,8 @@ import zipfile
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-schema_dir = os.environ.get("SCHEMA_DIR", "{}/../repo/meta/schema/".format(dir_path))
-repo_definitions_json = "{}/vX-repo-definitions.json".format(schema_dir)
+schema_dir = os.environ.get("SCHEMA_DIR", f"{dir_path}/../repo/meta/schema/")
+repo_definitions_json = f"{schema_dir}/vX-repo-definitions.json"
 
 
 def main():
@@ -40,17 +40,18 @@ def main():
     args = parser.parse_args()
 
     if not args.outdir.is_dir():
-        print('The path in --out-dir [{}] is not a directory. Please create it'
-              ' before running this script.'.format(args.outdir))
+        print(
+            f'The path in --out-dir [{args.outdir}] is not a directory. Please create it before running this script.'
+        )
+
         return
-    print('Paths present in [{}]: {}'.format(
-        str(args.outdir),
-        [str(p) for p in list(args.outdir.glob('*'))])
+    print(
+        f"Paths present in [{str(args.outdir)}]: {[str(p) for p in list(args.outdir.glob('*'))]}"
     )
 
+
     if not args.repository.is_dir():
-        print('The path in --repository [{}] is not a directory.'.format(
-            args.repository))
+        print(f'The path in --repository [{args.repository}] is not a directory.')
         return
 
     packages = [
@@ -122,8 +123,8 @@ def render_universe_by_version(outdir, packages, version):
         file_path = render_json_by_version(outdir, packages, version)
         _validate_repo(file_path, version)
         create_content_type_file(
-            outdir / 'repo-up-to-{}.content_type'.format(version),
-            get_universe_version_for_dcos(version)
+            outdir / f'repo-up-to-{version}.content_type',
+            get_universe_version_for_dcos(version),
         )
 
 
@@ -166,8 +167,7 @@ def create_content_type_file(path, universe_version):
     """
     with path.open('w', encoding='utf-8') as ct_file:
         ct_file.write(
-            "application/vnd.dcos.universe.repo+json;" \
-            "charset=utf-8;version={}".format(universe_version)
+            f"application/vnd.dcos.universe.repo+json;charset=utf-8;version={universe_version}"
         )
 
 
@@ -186,7 +186,7 @@ def render_json_by_version(outdir, packages, version):
 
     packages = filter_and_downgrade_packages_by_version(packages, version)
 
-    json_file_path = outdir / 'repo-up-to-{}.json'.format(version)
+    json_file_path = outdir / f'repo-up-to-{version}.json'
     with json_file_path.open('w', encoding='utf-8') as universe_file:
         json.dump({'packages': packages}, universe_file)
 
@@ -438,12 +438,13 @@ def v3_to_v2_package(v3_package):
 
     package.pop('minDcosReleaseVersion', None)
     package['packagingVersion'] = "2.0"
-    resource = package.get('resource', None)
-    if resource:
+    if resource := package.get('resource', None):
         cli = resource.pop('cli', None)
         if cli and 'command' not in package:
-            print(('WARNING: Removing binary CLI from ({}, {}) without a '
-                  'Python CLI').format(package['name'], package['version']))
+            print(
+                f"WARNING: Removing binary CLI from ({package['name']}, {package['version']}) without a Python CLI"
+            )
+
 
     return package
 
@@ -474,7 +475,7 @@ def downgrade_package_to_v3(package):
     :rtyte: dict
     """
     packaging_version = package.get("packagingVersion")
-    if packaging_version == "2.0" or packaging_version == "3.0":
+    if packaging_version in ["2.0", "3.0"]:
         return copy.deepcopy(package)
     else:
         return v4_to_v3_package(package)
@@ -489,11 +490,18 @@ def validate_repo_with_schema(repo_json_data, repo_version):
     """
     validator = jsonschema.Draft4Validator(
         _load_jsonschema(repo_version),
-        resolver=jsonschema.RefResolver('file://' + repo_definitions_json, None))
+        resolver=jsonschema.RefResolver(
+            f'file://{repo_definitions_json}', None
+        ),
+    )
+
     errors = []
     for error in validator.iter_errors(repo_json_data):
-        for suberror in sorted(error.context, key=lambda e: e.schema_path):
-            errors.append('{}: {}'.format(list(suberror.schema_path), suberror.message))
+        errors.extend(
+            f'{list(suberror.schema_path)}: {suberror.message}'
+            for suberror in sorted(error.context, key=lambda e: e.schema_path)
+        )
+
     return errors
 
 
@@ -512,12 +520,12 @@ def _populate_dcos_version_json_to_folder(dcos_version, outdir):
     :return: None
     """
     repo_dir = outdir / dcos_version / 'package'
-    print('Paths present in [{}]: {}'.format(
-        str(repo_dir),
-        [str(p) for p in list(repo_dir.glob('*'))])
+    print(
+        f"Paths present in [{str(repo_dir)}]: {[str(p) for p in list(repo_dir.glob('*'))]}"
     )
+
     pathlib.Path(repo_dir).mkdir(parents=True)
-    repo_file = pathlib.Path(outdir / 'repo-up-to-{}.json'.format(dcos_version))
+    repo_file = pathlib.Path(outdir / f'repo-up-to-{dcos_version}.json')
     with repo_file.open('r',  encoding='utf-8') as f:
         data = json.loads(f.read())
         packages_dict = {}
@@ -529,8 +537,7 @@ def _populate_dcos_version_json_to_folder(dcos_version, outdir):
             packages_dict[package_name] = package_list
 
         for package_name, package_list in packages_dict.items():
-            with pathlib.Path(repo_dir / '{}.json'.format(package_name))\
-                        .open('w', encoding='utf-8') as f:
+            with pathlib.Path(repo_dir / f'{package_name}.json').open('w', encoding='utf-8') as f:
                 json.dump({'packages': package_list}, f)
 
 
@@ -568,10 +575,7 @@ def _load_jsonschema(repo_version):
     :return: the schema dictionary
     :rtype: dict
     """
-    with open(
-        '{}/{}-repo-schema.json'.format(schema_dir, repo_version),
-        encoding='utf-8'
-    ) as schema_file:
+    with open(f'{schema_dir}/{repo_version}-repo-schema.json', encoding='utf-8') as schema_file:
         return json.loads(schema_file.read())
 
 
